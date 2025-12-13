@@ -298,8 +298,11 @@ function probe(filepath, verbose = false) {
   return ffprobe(filepath)
     .then((raw) => {
       if (raw.error) {
+        // Include error code and string for better debugging
+        const errorMsg = raw.error.string || raw.error.code || 'Unknown error'
+        const errorCode = raw.error.code ? ` (code: ${raw.error.code})` : ''
         return {
-          error: raw.error.string
+          error: `${errorMsg}${errorCode}`
         }
       }
 
