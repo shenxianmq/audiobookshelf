@@ -37,6 +37,23 @@ jobs:
             type=edge,branch=master
             type=semver,pattern={{version}}
 
+      - name: Send Telegram notification on start
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 Docker 镜像构建开始！
+
+            📦 仓库: ${{ github.repository }}
+            🔖 标签: ${{ github.event.inputs.tags || '自动生成' }}
+            🔨 分支: ${{ github.ref_name }}
+            📝 提交: ${{ github.sha }}
+            👤 作者: ${{ github.actor }}
+            🔗 工作流链接: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ⏳ 正在构建中，请稍候...
+
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
 
