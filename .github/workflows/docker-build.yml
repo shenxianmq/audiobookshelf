@@ -60,63 +60,36 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login DockerHub
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Login to Dockerhub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: https://index.docker.io/v1/
 
-      - name: Verify Docker Hub permissions
-        run: |
-          echo "🔍 验证 Docker Hub 权限..."
-          IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/audiobookshelf"
-          USERNAME="${{ secrets.DOCKER_USERNAME }}"
-
-          # 验证登录是否成功
-          echo "检查 Docker Hub 登录状态..."
-          if ! docker info >/dev/null 2>&1; then
-            echo "❌ Docker daemon 未运行或无法访问"
-            exit 1
-          fi
-
-          # 验证认证信息（通过尝试拉取一个公共镜像来测试连接）
-          echo "测试 Docker Hub 连接..."
-          if docker pull hello-world:latest >/dev/null 2>&1; then
-            echo "✅ Docker Hub 连接正常"
-          else
-            echo "⚠️  Docker Hub 连接测试失败，但继续尝试构建"
-          fi
-
-          # 检查仓库是否存在（可选，首次推送会自动创建）
-          echo "检查仓库: ${IMAGE_NAME}"
-          if docker manifest inspect ${IMAGE_NAME}:latest >/dev/null 2>&1; then
-            echo "✅ 仓库 ${IMAGE_NAME} 已存在"
-          else
-            echo "ℹ️  仓库 ${IMAGE_NAME} 不存在，首次推送将自动创建"
-          fi
-
-          # 验证用户名是否正确
-          echo "验证用户名: ${USERNAME}"
-          if [ -z "${USERNAME}" ]; then
-            echo "❌ DOCKER_USERNAME secret 未设置"
-            exit 1
-          fi
-
-          echo "✅ 权限验证完成，准备构建和推送"
-          echo "📦 目标镜像: ${IMAGE_NAME}"
-
-      - name: Build Image
-        uses: docker/build-push-action@v5
+      - name: Build image
+        uses: docker/build-push-action@v6
         with:
-          context: .
-          platforms: |
-            linux/amd64
-            linux/arm64
-          push: true
           tags: ${{ github.event.inputs.tags || steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha, scope=${{ github.workflow }}-docker
-          cache-to: type=gha, scope=${{ github.workflow }}-docker
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Send Telegram notification on success
         if: success()
@@ -135,7 +108,7 @@ jobs:
             🔗 提交链接: ${{ github.event.head_commit.url }}
 
             🐳 镜像已推送到:
-            - ${{ secrets.DOCKER_USERNAME }}/audiobookshelf
+            - shenxianmq/audiobookshelf
 
       - name: Send Telegram notification on failure
         if: failure()
