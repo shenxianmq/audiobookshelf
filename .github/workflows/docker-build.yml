@@ -32,7 +32,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: shenxianmq/audiobookshelf
+          images: ${{ secrets.DOCKER_USERNAME }}/audiobookshelf
           tags: |
             type=edge,branch=master
             type=semver,pattern={{version}}
@@ -60,35 +60,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Login to Dockerhub
+      - name: Login DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build image
-        uses: docker/build-push-action@v6
+      - name: Build Image
+        uses: docker/build-push-action@v5
         with:
+          context: .
+          platforms: |
+            linux/amd64
+            linux/arm64
+          push: true
           tags: ${{ github.event.inputs.tags || steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          cache-from: type=gha, scope=${{ github.workflow }}-docker
+          cache-to: type=gha, scope=${{ github.workflow }}-docker
 
       - name: Send Telegram notification on success
         if: success()
@@ -107,7 +96,7 @@ jobs:
             🔗 提交链接: ${{ github.event.head_commit.url }}
 
             🐳 镜像已推送到:
-            - shenxianmq/audiobookshelf
+            - ${{ secrets.DOCKER_USERNAME }}/audiobookshelf
 
       - name: Send Telegram notification on failure
         if: failure()
