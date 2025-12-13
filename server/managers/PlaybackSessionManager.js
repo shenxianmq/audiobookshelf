@@ -82,7 +82,7 @@ class PlaybackSessionManager {
     Logger.debug(`[PlaybackSessionManager] startSessionRequest for device ${deviceInfo.deviceDescription}`)
     const { libraryItem, body: options } = req
     const session = await this.startSession(req.user, deviceInfo, libraryItem, episodeId, options)
-    res.json(session.toJSONForClient(libraryItem))
+    res.json(await session.toJSONForClientAsync(libraryItem))
   }
 
   /**

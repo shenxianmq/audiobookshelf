@@ -3,7 +3,7 @@ const { DataTypes, Model } = require('sequelize')
 const fsExtra = require('../libs/fsExtra')
 const Logger = require('../Logger')
 const libraryFilters = require('../utils/queries/libraryFilters')
-const { filePathToPOSIX, getFileTimestampsWithIno } = require('../utils/fileUtils')
+const { filePathToPOSIX, getFileTimestampsWithIno, readTextFile } = require('../utils/fileUtils')
 const LibraryFile = require('../objects/files/LibraryFile')
 const Book = require('./Book')
 const Podcast = require('./Podcast')
@@ -916,6 +916,52 @@ class LibraryItem extends Model {
     return this.libraryFiles.map((lf) => new LibraryFile(lf).toJSON())
   }
 
+  /**
+   * Get library files JSON with strm files resolved to their actual paths
+   * @returns {Promise<Array>}
+   */
+  async getLibraryFilesJsonAsync() {
+    const libraryFilesJson = await Promise.all(
+      this.libraryFiles.map(async (lf) => {
+        const libraryFile = new LibraryFile(lf)
+        const json = libraryFile.toJSON()
+        
+        // If this is a strm file, read the actual path from the strm file
+        if (libraryFile.metadata.ext?.toLowerCase() === '.strm') {
+          try {
+            const strmPath = libraryFile.metadata.path
+            const content = await readTextFile(strmPath)
+            if (content) {
+              const actualPath = content.trim()
+              if (actualPath) {
+                // If it's a URL, keep original path
+                if (actualPath.startsWith('http://') || actualPath.startsWith('https://')) {
+                  // Keep original strm path for URLs
+                } else {
+                  // Resolve the path
+                  let resolvedPath = actualPath
+                  if (!Path.isAbsolute(actualPath)) {
+                    const strmDir = Path.dirname(strmPath)
+                    resolvedPath = Path.resolve(strmDir, actualPath)
+                  }
+                  // Update the path in metadata to the actual file path
+                  json.metadata.path = filePathToPOSIX(resolvedPath)
+                }
+              }
+            }
+          } catch (error) {
+            Logger.warn(`[LibraryItem] Failed to read strm file "${libraryFile.metadata.path}": ${error.message}`)
+            // Keep original path if reading fails
+          }
+        }
+        
+        return json
+      })
+    )
+    
+    return libraryFilesJson
+  }
+
   toOldJSON() {
     if (!this.media) {
       throw new Error(`[LibraryItem] Cannot convert to old JSON without media for library item "${this.id}"`)
@@ -997,6 +1043,37 @@ class LibraryItem extends Model {
       media: this.media.toOldJSONExpanded(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database
       libraryFiles: this.getLibraryFilesJson(),
+      size: this.size
+    }
+  }
+
+  /**
+   * Get expanded JSON with strm files resolved to their actual paths
+   * @returns {Promise<Object>}
+   */
+  async toOldJSONExpandedAsync() {
+    return {
+      id: this.id,
+      ino: this.ino,
+      oldLibraryItemId: this.extraData?.oldLibraryItemId || null,
+      libraryId: this.libraryId,
+      folderId: this.libraryFolderId,
+      path: this.path,
+      relPath: this.relPath,
+      isFile: this.isFile,
+      mtimeMs: this.mtime?.valueOf(),
+      ctimeMs: this.ctime?.valueOf(),
+      birthtimeMs: this.birthtime?.valueOf(),
+      addedAt: this.createdAt.valueOf(),
+      updatedAt: this.updatedAt.valueOf(),
+      lastScan: this.lastScan?.valueOf(),
+      scanVersion: this.lastScanVersion,
+      isMissing: !!this.isMissing,
+      isInvalid: !!this.isInvalid,
+      mediaType: this.mediaType,
+      media: this.media.toOldJSONExpanded(this.id),
+      // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database
+      libraryFiles: await this.getLibraryFilesJsonAsync(),
       size: this.size
     }
   }

@@ -114,6 +114,42 @@ class PlaybackSession {
     }
   }
 
+  /**
+   * Session data to send to clients with strm files resolved
+   * @param {import('../models/LibraryItem')} [libraryItem]
+   * @returns {Promise<Object>}
+   */
+  async toJSONForClientAsync(libraryItem) {
+    return {
+      id: this.id,
+      userId: this.userId,
+      libraryId: this.libraryId,
+      libraryItemId: this.libraryItemId,
+      bookId: this.bookId,
+      episodeId: this.episodeId,
+      mediaType: this.mediaType,
+      mediaMetadata: structuredClone(this.mediaMetadata),
+      chapters: (this.chapters || []).map((c) => ({ ...c })),
+      displayTitle: this.displayTitle,
+      displayAuthor: this.displayAuthor,
+      coverPath: this.coverPath,
+      duration: this.duration,
+      playMethod: this.playMethod,
+      mediaPlayer: this.mediaPlayer,
+      deviceInfo: this.deviceInfo?.toJSON() || null,
+      serverVersion: this.serverVersion,
+      date: this.date,
+      dayOfWeek: this.dayOfWeek,
+      timeListening: this.timeListening,
+      startTime: this.startTime,
+      currentTime: this.currentTime,
+      startedAt: this.startedAt,
+      updatedAt: this.updatedAt,
+      audioTracks: this.audioTracks.map((at) => at.toJSON?.() || { ...at }),
+      libraryItem: libraryItem ? await libraryItem.toOldJSONExpandedAsync() : null
+    }
+  }
+
   construct(session) {
     this.id = session.id
     this.userId = session.userId
