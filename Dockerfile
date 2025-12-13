@@ -59,9 +59,9 @@ COPY --from=build-client /client/dist /app/client/dist
 COPY --from=build-server /server /app
 COPY --from=build-server ${NUSQLITE3_PATH} ${NUSQLITE3_PATH}
 
-EXPOSE 3333
+EXPOSE 80
 
-ENV PORT=3333
+ENV PORT=80
 ENV NODE_ENV=production
 ENV CONFIG_PATH="/config"
 ENV METADATA_PATH="/metadata"
