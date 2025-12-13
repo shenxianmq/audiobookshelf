@@ -7,6 +7,7 @@ const parseNameString = require('../utils/parsers/parseNameString')
 const parseSeriesString = require('../utils/parsers/parseSeriesString')
 const LibraryItem = require('../models/LibraryItem')
 const AudioFile = require('../objects/files/AudioFile')
+const { readTextFile, filePathToPOSIX } = require('../utils/fileUtils')
 
 class AudioFileScanner {
   constructor() {}
@@ -147,6 +148,47 @@ class AudioFileScanner {
   }
 
   /**
+   * Read and parse strm file to get actual file path
+   * @param {string} strmPath
+   * @returns {Promise<string|null>} Actual file path or null if error
+   */
+  async readStrmFile(strmPath) {
+    try {
+      const content = await readTextFile(strmPath)
+      if (!content) {
+        Logger.error(`[AudioFileScanner] Empty strm file: "${strmPath}"`)
+        return null
+      }
+
+      // strm file contains a single line with the actual file path or URL
+      const actualPath = content.trim()
+      if (!actualPath) {
+        Logger.error(`[AudioFileScanner] Invalid strm file content: "${strmPath}"`)
+        return null
+      }
+
+      // If it's a URL, return as is (for future URL support)
+      if (actualPath.startsWith('http://') || actualPath.startsWith('https://')) {
+        Logger.warn(`[AudioFileScanner] strm file contains URL, not yet supported: "${strmPath}"`)
+        return null
+      }
+
+      // If it's an absolute path, use it directly
+      if (Path.isAbsolute(actualPath)) {
+        return filePathToPOSIX(actualPath)
+      }
+
+      // If it's a relative path, resolve it relative to the strm file's directory
+      const strmDir = Path.dirname(strmPath)
+      const resolvedPath = Path.resolve(strmDir, actualPath)
+      return filePathToPOSIX(resolvedPath)
+    } catch (error) {
+      Logger.error(`[AudioFileScanner] Failed to read strm file "${strmPath}": ${error.message}`)
+      return null
+    }
+  }
+
+  /**
    *
    * @param {string} mediaType
    * @param {LibraryItem.LibraryFileObject} libraryFile
@@ -154,10 +196,30 @@ class AudioFileScanner {
    * @returns {Promise<AudioFile>}
    */
   async scan(mediaType, libraryFile, mediaMetadataFromScan) {
-    const probeData = await prober.probe(libraryFile.metadata.path)
+    let actualFilePath = libraryFile.metadata.path
+    let isStrmFile = false
+
+    // Check if this is a strm file
+    const ext = Path.extname(libraryFile.metadata.path).toLowerCase()
+    if (ext === '.strm') {
+      isStrmFile = true
+      Logger.debug(`[AudioFileScanner] Detected strm file: "${libraryFile.metadata.path}"`)
+
+      // Read the actual file path from strm file
+      const strmActualPath = await this.readStrmFile(libraryFile.metadata.path)
+      if (!strmActualPath) {
+        Logger.error(`[AudioFileScanner] Failed to read actual path from strm file: "${libraryFile.metadata.path}"`)
+        return null
+      }
+
+      actualFilePath = strmActualPath
+      Logger.debug(`[AudioFileScanner] Resolved strm file to actual path: "${actualFilePath}"`)
+    }
+
+    const probeData = await prober.probe(actualFilePath)
 
     if (probeData.error) {
-      Logger.error(`[AudioFileScanner] ${probeData.error} : "${libraryFile.metadata.path}"`)
+      Logger.error(`[AudioFileScanner] ${probeData.error} : "${actualFilePath}"`)
       return null
     }
 
@@ -174,7 +236,16 @@ class AudioFileScanner {
       audioFile.trackNumFromFilename = trackNumber
       audioFile.discNumFromFilename = discNumber
     }
-    audioFile.setDataFromProbe(libraryFile, probeData)
+
+    // Store original strm path if this is a strm file
+    if (isStrmFile) {
+      // Update metadata path to actual file path for playback
+      audioFile.setDataFromProbe(libraryFile, probeData)
+      // Override the path in metadata to use actual file path
+      audioFile.metadata.path = actualFilePath
+    } else {
+      audioFile.setDataFromProbe(libraryFile, probeData)
+    }
 
     return audioFile
   }

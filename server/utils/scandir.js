@@ -19,6 +19,8 @@ const parseNameString = require('./parsers/parseNameString')
 function isMediaFile(mediaType, ext, audiobooksOnly = false) {
   if (!ext) return false
   const extclean = ext.slice(1).toLowerCase()
+  // Support Emby strm files as audio files
+  if (extclean === 'strm') return true
   if (mediaType === 'podcast') return globals.SupportedAudioTypes.includes(extclean)
   else if (audiobooksOnly) return globals.SupportedAudioTypes.includes(extclean)
   return globals.SupportedAudioTypes.includes(extclean) || globals.SupportedEbookTypes.includes(extclean)
@@ -34,6 +36,8 @@ function checkFilepathIsAudioFile(filepath) {
   const ext = Path.extname(filepath)
   if (!ext) return false
   const extclean = ext.slice(1).toLowerCase()
+  // Support Emby strm files as audio files
+  if (extclean === 'strm') return true
   return globals.SupportedAudioTypes.includes(extclean)
 }
 module.exports.checkFilepathIsAudioFile = checkFilepathIsAudioFile

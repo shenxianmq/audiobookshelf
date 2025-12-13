@@ -22,7 +22,7 @@ on:
 
 jobs:
   build:
-    if: ${{ !contains(github.event.head_commit.message, 'skip ci') && github.repository == 'advplyr/audiobookshelf' }}
+    if: ${{ !contains(github.event.head_commit.message, 'skip ci') && github.repository == 'shenxianmqshenxianmq/audiobookshelf' }}
     runs-on: ubuntu-24.04
 
     steps:
@@ -80,3 +80,39 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Send Telegram notification on success
+        if: success()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ✅ Docker 镜像构建成功！
+
+            📦 仓库: ${{ github.repository }}
+            🔖 标签: ${{ github.event.inputs.tags || steps.meta.outputs.tags }}
+            🔨 分支: ${{ github.ref_name }}
+            📝 提交: ${{ github.sha }}
+            👤 作者: ${{ github.actor }}
+            🔗 提交链接: ${{ github.event.head_commit.url }}
+
+            🐳 镜像已推送到:
+            - advplyr/audiobookshelf
+            - ghcr.io/${{ github.repository_owner }}/audiobookshelf
+
+      - name: Send Telegram notification on failure
+        if: failure()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ❌ Docker 镜像构建失败！
+
+            📦 仓库: ${{ github.repository }}
+            🔖 标签: ${{ github.event.inputs.tags || steps.meta.outputs.tags }}
+            🔨 分支: ${{ github.ref_name }}
+            📝 提交: ${{ github.sha }}
+            👤 作者: ${{ github.actor }}
+            🔗 工作流链接: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

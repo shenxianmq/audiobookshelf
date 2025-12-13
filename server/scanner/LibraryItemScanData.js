@@ -85,22 +85,34 @@ class LibraryItemScanData {
 
   /** @type {LibraryFileModifiedObject[]} */
   get audioLibraryFilesModified() {
-    return this.libraryFilesModified.filter(lf => globals.SupportedAudioTypes.includes(lf.old.metadata.ext?.slice(1).toLowerCase() || ''))
+    return this.libraryFilesModified.filter(lf => {
+      const ext = lf.old.metadata.ext?.slice(1).toLowerCase() || ''
+      return globals.SupportedAudioTypes.includes(ext) || ext === 'strm'
+    })
   }
 
   /** @type {LibraryItem.LibraryFileObject[]} */
   get audioLibraryFilesRemoved() {
-    return this.libraryFilesRemoved.filter(lf => globals.SupportedAudioTypes.includes(lf.metadata.ext?.slice(1).toLowerCase() || ''))
+    return this.libraryFilesRemoved.filter(lf => {
+      const ext = lf.metadata.ext?.slice(1).toLowerCase() || ''
+      return globals.SupportedAudioTypes.includes(ext) || ext === 'strm'
+    })
   }
 
   /** @type {LibraryItem.LibraryFileObject[]} */
   get audioLibraryFilesAdded() {
-    return this.libraryFilesAdded.filter(lf => globals.SupportedAudioTypes.includes(lf.metadata.ext?.slice(1).toLowerCase() || ''))
+    return this.libraryFilesAdded.filter(lf => {
+      const ext = lf.metadata.ext?.slice(1).toLowerCase() || ''
+      return globals.SupportedAudioTypes.includes(ext) || ext === 'strm'
+    })
   }
 
   /** @type {LibraryItem.LibraryFileObject[]} */
   get audioLibraryFiles() {
-    return this.libraryFiles.filter(lf => globals.SupportedAudioTypes.includes(lf.metadata.ext?.slice(1).toLowerCase() || ''))
+    return this.libraryFiles.filter(lf => {
+      const ext = lf.metadata.ext?.slice(1).toLowerCase() || ''
+      return globals.SupportedAudioTypes.includes(ext) || ext === 'strm'
+    })
   }
 
   /** @type {LibraryFileModifiedObject[]} */

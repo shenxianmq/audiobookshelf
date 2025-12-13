@@ -933,20 +933,52 @@ class LibraryItemController {
    * @param {Response} res
    */
   async getLibraryFile(req, res) {
-    const libraryFile = req.libraryFile
+    let libraryFile = req.libraryFile
+    let actualFilePath = libraryFile.metadata.path
+
+    // Handle Emby strm files - read actual file path from strm file
+    const ext = Path.extname(libraryFile.metadata.path).toLowerCase()
+    if (ext === '.strm') {
+      try {
+        const { readTextFile, filePathToPOSIX } = require('../utils/fileUtils')
+        const content = await readTextFile(libraryFile.metadata.path)
+        if (content) {
+          const strmPath = content.trim()
+          if (strmPath && !strmPath.startsWith('http://') && !strmPath.startsWith('https://')) {
+            // Resolve relative path from strm file directory
+            if (Path.isAbsolute(strmPath)) {
+              actualFilePath = filePathToPOSIX(strmPath)
+            } else {
+              const strmDir = Path.dirname(libraryFile.metadata.path)
+              actualFilePath = filePathToPOSIX(Path.resolve(strmDir, strmPath))
+            }
+            Logger.debug(`[LibraryItemController] Resolved strm file "${libraryFile.metadata.path}" to actual path "${actualFilePath}"`)
+          } else {
+            Logger.error(`[LibraryItemController] strm file contains URL or empty content: "${libraryFile.metadata.path}"`)
+            return res.sendStatus(404)
+          }
+        } else {
+          Logger.error(`[LibraryItemController] Failed to read strm file: "${libraryFile.metadata.path}"`)
+          return res.sendStatus(404)
+        }
+      } catch (error) {
+        Logger.error(`[LibraryItemController] Error reading strm file "${libraryFile.metadata.path}": ${error.message}`)
+        return res.sendStatus(404)
+      }
+    }
 
     if (global.XAccel) {
-      const encodedURI = encodeUriPath(global.XAccel + libraryFile.metadata.path)
+      const encodedURI = encodeUriPath(global.XAccel + actualFilePath)
       Logger.debug(`Use X-Accel to serve static file ${encodedURI}`)
       return res.status(204).header({ 'X-Accel-Redirect': encodedURI }).send()
     }
 
     // Express does not set the correct mimetype for m4b files so use our defined mimetypes if available
-    const audioMimeType = getAudioMimeTypeFromExtname(Path.extname(libraryFile.metadata.path))
+    const audioMimeType = getAudioMimeTypeFromExtname(Path.extname(actualFilePath))
     if (audioMimeType) {
       res.setHeader('Content-Type', audioMimeType)
     }
-    res.sendFile(libraryFile.metadata.path)
+    res.sendFile(actualFilePath)
   }
 
   /**
