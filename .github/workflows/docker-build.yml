@@ -21,107 +21,68 @@ on:
       - package.json
 
 jobs:
-  build:
-    runs-on: ubuntu-24.04
-
+  Docker-build:
+    runs-on: ubuntu-latest
+    name: Build Docker Image
     steps:
-      - name: Check out
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Docker meta
+      - name: Release version
+        id: release_version
+        run: |
+          app_version=$(sed -nE 's/^[[:space:]]*APP_VERSION[[:space:]]*=[[:space:]]*"v?([0-9]+(\.[0-9]+){2,}([-+._A-Za-z0-9]*)?)".*/\1/p' version.py)
+          echo "app_version=$app_version" >> $GITHUB_ENV
+      - name: Send Telegram Message
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            audiobookshelf: amd64 镜像开始构建
+            版本: ${{ env.app_version }}
+            仓库: ${{ secrets.DOCKER_USERNAME }}/audiobookshelf
+      - name: Docker Meta
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/audiobookshelf
           tags: |
-            type=edge,branch=master
-            type=semver,pattern={{version}}
+            type=raw,value=${{ env.app_version }}
+            type=raw,value=latest,enable=${{ !contains(env.app_version, 'test') }}
 
-      - name: Send Telegram notification on start
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            🚀 Docker 镜像构建开始！
-
-            📦 仓库: ${{ github.repository }}
-            🔖 标签: ${{ github.event.inputs.tags || '自动生成' }}
-            🔨 分支: ${{ github.ref_name }}
-            📝 提交: ${{ github.sha }}
-            👤 作者: ${{ github.actor }}
-            🔗 工作流链接: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            ⏳ 正在构建中，请稍候...
-
-      - name: Setup QEMU
+      - name: Set Up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
+      - name: Set Up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Login to Dockerhub
+      - name: Login DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          registry: https://index.docker.io/v1/
 
-      - name: Build image
-        uses: docker/build-push-action@v6
+      - name: Build Image
+        uses: docker/build-push-action@v5
         with:
-          tags: ${{ github.event.inputs.tags || steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           context: .
-          platforms: linux/amd64,linux/arm64
+          file: Dockerfile
+          platforms: |
+            linux/amd64
           push: true
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            AUDIOBOOKSHELF_VERSION=${{ env.app_version }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha, scope=${{ github.workflow }}-docker
+          cache-to: type=gha, scope=${{ github.workflow }}-docker
 
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-      - name: Send Telegram notification on success
-        if: success()
+      - name: Send Telegram Message
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            ✅ Docker 镜像构建成功！
-
-            📦 仓库: ${{ github.repository }}
-            🔖 标签: ${{ github.event.inputs.tags || steps.meta.outputs.tags }}
-            🔨 分支: ${{ github.ref_name }}
-            📝 提交: ${{ github.sha }}
-            👤 作者: ${{ github.actor }}
-            🔗 提交链接: ${{ github.event.head_commit.url }}
-
-            🐳 镜像已推送到:
-            - shenxianmq/audiobookshelf
-
-      - name: Send Telegram notification on failure
-        if: failure()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            ❌ Docker 镜像构建失败！
-
-            📦 仓库: ${{ github.repository }}
-            🔖 标签: ${{ github.event.inputs.tags || steps.meta.outputs.tags }}
-            🔨 分支: ${{ github.ref_name }}
-            📝 提交: ${{ github.sha }}
-            👤 作者: ${{ github.actor }}
-            🔗 工作流链接: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🎉 audiobookshelf: amd64 镜像构建完成
+            版本: ${{ env.app_version }}
+            仓库: ${{ secrets.DOCKER_USERNAME }}/audiobookshelf
