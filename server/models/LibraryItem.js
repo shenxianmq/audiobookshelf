@@ -925,7 +925,7 @@ class LibraryItem extends Model {
       this.libraryFiles.map(async (lf) => {
         const libraryFile = new LibraryFile(lf)
         const json = libraryFile.toJSON()
-        
+
         // If this is a strm file, read the actual path from the strm file
         if (libraryFile.metadata.ext?.toLowerCase() === '.strm') {
           try {
@@ -934,19 +934,8 @@ class LibraryItem extends Model {
             if (content) {
               const actualPath = content.trim()
               if (actualPath) {
-                // If it's a URL, keep original path
-                if (actualPath.startsWith('http://') || actualPath.startsWith('https://')) {
-                  // Keep original strm path for URLs
-                } else {
-                  // Resolve the path
-                  let resolvedPath = actualPath
-                  if (!Path.isAbsolute(actualPath)) {
-                    const strmDir = Path.dirname(strmPath)
-                    resolvedPath = Path.resolve(strmDir, actualPath)
-                  }
-                  // Update the path in metadata to the actual file path
-                  json.metadata.path = filePathToPOSIX(resolvedPath)
-                }
+                // Update the path in metadata to the actual file path from strm content
+                json.metadata.path = filePathToPOSIX(actualPath)
               }
             }
           } catch (error) {
@@ -954,11 +943,11 @@ class LibraryItem extends Model {
             // Keep original path if reading fails
           }
         }
-        
+
         return json
       })
     )
-    
+
     return libraryFilesJson
   }
 
