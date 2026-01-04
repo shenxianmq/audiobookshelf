@@ -164,7 +164,8 @@ class PodcastController {
 
     SocketAuthority.libraryItemEmitter('item_added', newLibraryItem)
 
-    res.json(newLibraryItem.toOldJSONExpanded())
+    const itemJson = await newLibraryItem.toOldJSONExpandedAsync()
+    res.json(itemJson)
 
     // Turn on podcast auto download cron if not already on
     if (newLibraryItem.media.autoDownloadEpisodes) {
@@ -434,7 +435,8 @@ class PodcastController {
       }
     }
 
-    res.json(req.libraryItem.toOldJSONExpanded())
+    const itemJson = await req.libraryItem.toOldJSONExpandedAsync()
+    res.json(itemJson)
   }
 
   /**

@@ -992,6 +992,40 @@ class LibraryItem extends Model {
     }
   }
 
+  /**
+   * Get JSON with strm files resolved to their actual paths
+   * @returns {Promise<Object>}
+   */
+  async toOldJSONAsync() {
+    if (!this.media) {
+      throw new Error(`[LibraryItem] Cannot convert to old JSON without media for library item "${this.id}"`)
+    }
+
+    return {
+      id: this.id,
+      ino: this.ino,
+      oldLibraryItemId: this.extraData?.oldLibraryItemId || null,
+      libraryId: this.libraryId,
+      folderId: this.libraryFolderId,
+      path: this.path,
+      relPath: this.relPath,
+      isFile: this.isFile,
+      mtimeMs: this.mtime?.valueOf(),
+      ctimeMs: this.ctime?.valueOf(),
+      birthtimeMs: this.birthtime?.valueOf(),
+      addedAt: this.createdAt.valueOf(),
+      updatedAt: this.updatedAt.valueOf(),
+      lastScan: this.lastScan?.valueOf(),
+      scanVersion: this.lastScanVersion,
+      isMissing: !!this.isMissing,
+      isInvalid: !!this.isInvalid,
+      mediaType: this.mediaType,
+      media: this.media.toOldJSON(this.id),
+      // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database
+      libraryFiles: await this.getLibraryFilesJsonAsync()
+    }
+  }
+
   toOldJSONMinified() {
     if (!this.media) {
       throw new Error(`[LibraryItem] Cannot convert to old JSON without media for library item "${this.id}"`)

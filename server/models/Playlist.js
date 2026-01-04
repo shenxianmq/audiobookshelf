@@ -374,6 +374,39 @@ class Playlist extends Model {
 
     return json
   }
+
+  async toOldJSONExpandedAsync() {
+    if (!this.playlistMediaItems) {
+      throw new Error('playlistMediaItems are required to expand Playlist')
+    }
+
+    const json = this.toOldJSON()
+    json.items = await Promise.all(
+      this.playlistMediaItems.map(async (pmi) => {
+        if (pmi.mediaItemType === 'book') {
+          const libraryItem = pmi.mediaItem.libraryItem
+          delete pmi.mediaItem.libraryItem
+          libraryItem.media = pmi.mediaItem
+          return {
+            libraryItemId: libraryItem.id,
+            libraryItem: await libraryItem.toOldJSONExpandedAsync()
+          }
+        }
+
+        const libraryItem = pmi.mediaItem.podcast.libraryItem
+        delete pmi.mediaItem.podcast.libraryItem
+        libraryItem.media = pmi.mediaItem.podcast
+        return {
+          episodeId: pmi.mediaItemId,
+          episode: pmi.mediaItem.toOldJSONExpanded(libraryItem.id),
+          libraryItemId: libraryItem.id,
+          libraryItem: libraryItem.toOldJSONMinified()
+        }
+      })
+    )
+
+    return json
+  }
 }
 
 module.exports = Playlist

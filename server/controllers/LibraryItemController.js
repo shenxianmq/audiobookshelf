@@ -51,7 +51,7 @@ class LibraryItemController {
   async findOne(req, res) {
     const includeEntities = (req.query.include || '').split(',')
     if (req.query.expanded == 1) {
-      const item = req.libraryItem.toOldJSONExpanded()
+      const item = await req.libraryItem.toOldJSONExpandedAsync()
 
       // Include users media progress
       if (includeEntities.includes('progress')) {
@@ -78,7 +78,8 @@ class LibraryItemController {
 
       return res.json(item)
     }
-    res.json(req.libraryItem.toOldJSON())
+    const item = await req.libraryItem.toOldJSONAsync()
+    res.json(item)
   }
 
   /**
@@ -695,8 +696,9 @@ class LibraryItemController {
     const libraryItems = await Database.libraryItemModel.findAllExpandedWhere({
       id: libraryItemIds
     })
+    const libraryItemsJson = await Promise.all(libraryItems.map((li) => li.toOldJSONExpandedAsync()))
     res.json({
-      libraryItems: libraryItems.map((li) => li.toOldJSONExpanded())
+      libraryItems: libraryItemsJson
     })
   }
 

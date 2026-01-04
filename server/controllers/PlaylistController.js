@@ -108,7 +108,7 @@ class PlaylistController {
 
       newPlaylist.playlistMediaItems = await newPlaylist.getMediaItemsExpandedWithLibraryItem()
 
-      const jsonExpanded = newPlaylist.toOldJSONExpanded()
+      const jsonExpanded = await newPlaylist.toOldJSONExpandedAsync()
       SocketAuthority.clientEmitter(newPlaylist.userId, 'playlist_added', jsonExpanded)
       res.json(jsonExpanded)
     } catch (error) {
@@ -144,7 +144,8 @@ class PlaylistController {
    */
   async findOne(req, res) {
     req.playlist.playlistMediaItems = await req.playlist.getMediaItemsExpandedWithLibraryItem()
-    res.json(req.playlist.toOldJSONExpanded())
+    const jsonExpanded = await req.playlist.toOldJSONExpandedAsync()
+    res.json(jsonExpanded)
   }
 
   /**
@@ -237,7 +238,7 @@ class PlaylistController {
 
     req.playlist.playlistMediaItems = await req.playlist.getMediaItemsExpandedWithLibraryItem()
 
-    const jsonExpanded = req.playlist.toOldJSONExpanded()
+    const jsonExpanded = await req.playlist.toOldJSONExpandedAsync()
     if (wasUpdated) {
       SocketAuthority.clientEmitter(req.playlist.userId, 'playlist_updated', jsonExpanded)
     }
@@ -253,7 +254,7 @@ class PlaylistController {
    */
   async delete(req, res) {
     req.playlist.playlistMediaItems = await req.playlist.getMediaItemsExpandedWithLibraryItem()
-    const jsonExpanded = req.playlist.toOldJSONExpanded()
+    const jsonExpanded = await req.playlist.toOldJSONExpandedAsync()
 
     await req.playlist.destroy()
     SocketAuthority.clientEmitter(jsonExpanded.userId, 'playlist_removed', jsonExpanded)
@@ -296,7 +297,7 @@ class PlaylistController {
       return res.status(400).send('Item already in playlist')
     }
 
-    const jsonExpanded = req.playlist.toOldJSONExpanded()
+    const jsonExpanded = await req.playlist.toOldJSONExpandedAsync()
 
     const playlistMediaItem = {
       playlistId: req.playlist.id,
@@ -316,9 +317,10 @@ class PlaylistController {
         libraryItem: libraryItem.toOldJSONMinified()
       })
     } else {
+      const libraryItemJson = await libraryItem.toOldJSONExpandedAsync()
       jsonExpanded.items.push({
         libraryItemId: libraryItem.id,
-        libraryItem: libraryItem.toOldJSONExpanded()
+        libraryItem: libraryItemJson
       })
     }
 
@@ -359,7 +361,7 @@ class PlaylistController {
       }
     }
 
-    const jsonExpanded = req.playlist.toOldJSONExpanded()
+    const jsonExpanded = await req.playlist.toOldJSONExpandedAsync()
 
     // Playlist is removed when there are no items
     if (!jsonExpanded.items.length) {
@@ -396,7 +398,7 @@ class PlaylistController {
     req.playlist.playlistMediaItems = await req.playlist.getMediaItemsExpandedWithLibraryItem()
 
     const mediaItemsToAdd = []
-    const jsonExpanded = req.playlist.toOldJSONExpanded()
+    const jsonExpanded = await req.playlist.toOldJSONExpandedAsync()
 
     // Setup array of playlistMediaItem records to add
     let order = req.playlist.playlistMediaItems.length + 1
@@ -425,9 +427,10 @@ class PlaylistController {
             libraryItem: libraryItem.toOldJSONMinified()
           })
         } else {
+          const libraryItemJson = await libraryItem.toOldJSONExpandedAsync()
           jsonExpanded.items.push({
             libraryItemId: libraryItem.id,
-            libraryItem: libraryItem.toOldJSONExpanded()
+            libraryItem: libraryItemJson
           })
         }
       }
@@ -476,7 +479,7 @@ class PlaylistController {
       hasUpdated = true
     }
 
-    const jsonExpanded = req.playlist.toOldJSONExpanded()
+    const jsonExpanded = await req.playlist.toOldJSONExpandedAsync()
     if (hasUpdated) {
       // Playlist is removed when there are no items
       if (!req.playlist.playlistMediaItems.length) {
@@ -541,7 +544,7 @@ class PlaylistController {
 
       playlist.playlistMediaItems = await playlist.getMediaItemsExpandedWithLibraryItem()
 
-      const jsonExpanded = playlist.toOldJSONExpanded()
+      const jsonExpanded = await playlist.toOldJSONExpandedAsync()
       SocketAuthority.clientEmitter(playlist.userId, 'playlist_added', jsonExpanded)
       res.json(jsonExpanded)
     } catch (error) {

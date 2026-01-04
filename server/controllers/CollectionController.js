@@ -93,7 +93,7 @@ class CollectionController {
     newCollection.books = await newCollection.getBooksExpandedWithLibraryItem()
 
     // Note: The old collection model stores expanded libraryItems in the books property
-    const jsonExpanded = newCollection.toOldJSONExpanded()
+    const jsonExpanded = await newCollection.toOldJSONExpandedAsync()
     SocketAuthority.emitter('collection_added', jsonExpanded)
     res.json(jsonExpanded)
   }

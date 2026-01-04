@@ -287,6 +287,24 @@ class Collection extends Model {
 
     return json
   }
+
+  async toOldJSONExpandedAsync() {
+    if (!this.books) {
+      throw new Error('Books are required to expand Collection')
+    }
+
+    const json = this.toOldJSON()
+    json.books = await Promise.all(
+      this.books.map(async (book) => {
+        const libraryItem = book.libraryItem
+        delete book.libraryItem
+        libraryItem.media = book
+        return await libraryItem.toOldJSONExpandedAsync()
+      })
+    )
+
+    return json
+  }
 }
 
 module.exports = Collection
