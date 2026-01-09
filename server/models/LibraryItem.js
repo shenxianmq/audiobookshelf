@@ -934,8 +934,11 @@ class LibraryItem extends Model {
             if (content) {
               const actualPath = content.trim()
               if (actualPath) {
-                // Update the path in metadata to the actual file path from strm content
-                json.metadata.path = filePathToPOSIX(actualPath)
+                // Update the metadata to the actual file info from strm content
+                const posixPath = filePathToPOSIX(actualPath)
+                json.metadata.path = posixPath
+                json.metadata.ext = Path.extname(posixPath)
+                json.metadata.filename = Path.basename(posixPath)
               }
             }
           } catch (error) {

@@ -241,8 +241,10 @@ class AudioFileScanner {
     if (isStrmFile) {
       // Update metadata path to actual file path for playback
       audioFile.setDataFromProbe(libraryFile, probeData)
-      // Override the path in metadata to use actual file path
+      // Override the path, ext, and filename in metadata to use actual file info
       audioFile.metadata.path = actualFilePath
+      audioFile.metadata.ext = Path.extname(actualFilePath)
+      audioFile.metadata.filename = Path.basename(actualFilePath)
     } else {
       audioFile.setDataFromProbe(libraryFile, probeData)
     }
